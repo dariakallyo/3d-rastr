@@ -5,35 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dot Relief</title>
 <style>
-  :root { --panel: rgba(20,20,20,.82); --text: #eee; --muted: #999; --accent: #f0a050; }
-  * { box-sizing: border-box; }
+  :root { --text: #eee; --muted: #999; --accent: #f0a050; }
+  * { box-sizing: border-box; border-radius: 0; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b0b; color: var(--text);
     font: 13px/1.4 -apple-system, system-ui, sans-serif; }
   body { display: flex; }
   canvas { display: block; }
-  #panel { flex: 0 0 270px; height: 100%; padding: 14px; overflow-y: auto;
-    background: #161616; border-right: 1px solid #2a2a2a; }
+  #panel { flex: 0 0 270px; height: 100%; padding: 14px; overflow-y: auto; background: #161616; }
   #stage { flex: 1; position: relative; min-width: 0; overflow: hidden; }
-  .bgrow { display: flex; gap: 8px; align-items: center; }
-  .bgrow input { flex: 0 0 44px; height: 34px; }
-  .bgrow button { margin: 0; }
   #panel h1 { font-size: 14px; margin: 0 0 10px; }
-  .row { margin: 10px 0; }
-  .row label { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 4px; }
-  .row label b { color: var(--text); font-weight: 500; }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
-  .toggle { display: flex; align-items: center; gap: 8px; color: var(--text); cursor: pointer; }
-  .toggle input { accent-color: var(--accent); }
-  fieldset { border: 1px solid #333; border-radius: 8px; padding: 6px 10px; margin: 10px 0; }
-  fieldset .row { margin: 6px 0; }
-  button, .file { display: block; width: 100%; padding: 8px; margin: 6px 0; border: 1px solid #444; border-radius: 6px;
-    background: #222; color: var(--text); cursor: pointer; text-align: center; font: inherit; }
-  button:hover, .file:hover { border-color: var(--accent); }
-  button.rec { border-color: #e44; color: #f66; }
+  .row { margin: 16px 0; }
+  .row label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .row label b { font-weight: 500; }
+  .bgrow { display: flex; gap: 8px; align-items: stretch; }
+  .bgrow button { margin: 0; }
+
+  /* цвет фона: плоский квадрат без рамки */
+  input[type=color] { -webkit-appearance: none; appearance: none; flex: 0 0 44px; height: 34px;
+    padding: 0; border: none; background: none; cursor: pointer; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type=color]::-webkit-color-swatch { border: none; }
+  input[type=color]::-moz-color-swatch { border: none; }
+
+  /* ползунок: тонкая линия + бегунок-шарик, освещённый как точки растра */
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 18px;
+    background: none; margin: 0; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #3a3a3a; border: none; }
+  input[type=range]::-moz-range-track { height: 2px; background: #3a3a3a; border: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -7px;
+    border: none; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #fff6e8 0%, #f6b46c 22%, var(--accent) 48%, #8a4d18 100%); }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #fff6e8 0%, #f6b46c 22%, var(--accent) 48%, #8a4d18 100%); }
+
+  button, .file { display: block; width: 100%; padding: 8px; margin: 6px 0; border: none;
+    background: #262626; color: var(--text); cursor: pointer; text-align: center; font: inherit; }
+  button:hover, .file:hover { background: #333; }
+  button.rec { background: #4a1a1a; color: #f88; }
   .file input { display: none; }
-  .hint { color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .hint { color: var(--muted); font-size: 11px; margin-top: 16px; }
   #drop { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; font-size: 20px;
-    background: rgba(240,160,80,.15); border: 3px dashed var(--accent); pointer-events: none; }
+    background: rgba(240,160,80,.15); pointer-events: none; }
   body.dragging #drop { display: flex; }
 </style>
 </head>
@@ -43,36 +55,33 @@
   <label class="file">Загрузить картинку<input type="file" id="file" accept="image/*"></label>
 
   <div class="row">
-    <label>Плотность (шариков по ширине) <b id="densityVal"></b></label>
+    <label>Плотность <b id="densityVal"></b></label>
     <input type="range" id="density" min="30" max="400" step="1" value="160">
   </div>
   <div class="row">
-    <label>Цвет фона <b></b></label>
+    <label>Цвет фона</label>
     <div class="bgrow">
       <input type="color" id="bg" value="#0b0b0b">
       <button id="fly">Облёт камеры</button>
     </div>
   </div>
 
-  <fieldset>
-    <label class="toggle"><input type="checkbox" id="useBright" checked> Рельеф по яркости</label>
-    <div class="row"><label>Глубина <b id="brightVal"></b></label>
-      <input type="range" id="bright" min="-60" max="60" step="1" value="20"></div>
-  </fieldset>
-  <fieldset>
-    <label class="toggle"><input type="checkbox" id="useWave" checked> Волна</label>
-    <div class="row"><label>Амплитуда <b id="waveVal"></b></label>
-      <input type="range" id="wave" min="0" max="30" step="0.5" value="4"></div>
-  </fieldset>
-  <fieldset>
-    <label class="toggle"><input type="checkbox" id="useMouse" checked> Реакция на мышь</label>
-    <div class="row"><label>Сила (− притянуть / + вытолкнуть) <b id="mouseVal"></b></label>
-      <input type="range" id="mouse" min="-40" max="40" step="1" value="20"></div>
-  </fieldset>
+  <div class="row">
+    <label>Рельеф по яркости <b id="brightVal"></b></label>
+    <input type="range" id="bright" min="-60" max="60" step="1" value="20">
+  </div>
+  <div class="row">
+    <label>Волна <b id="waveVal"></b></label>
+    <input type="range" id="wave" min="0" max="30" step="0.5" value="4">
+  </div>
+  <div class="row">
+    <label>Реакция на мышь <b id="mouseVal"></b></label>
+    <input type="range" id="mouse" min="-40" max="40" step="1" value="20">
+  </div>
 
   <button id="png">Сохранить PNG</button>
   <button id="rec">● Записать видео</button>
-  <div class="hint">Вращение — ЛКМ, сдвиг — ПКМ, зум — колесо. Картинку можно перетащить в окно.</div>
+  <div class="hint">Вращение — ЛКМ, сдвиг — ПКМ, зум — колесо. Картинку можно перетащить в окно. Чтобы выключить эффект, поставь ползунок на 0.</div>
 </div>
 <div id="stage"></div>
 <div id="drop">Отпусти, чтобы загрузить</div>
@@ -226,11 +235,9 @@ function bindRange(id, onChange) {
 }
 let rebuildTimer;
 bindRange('density', () => { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(build, 80); });
-bindRange('bright', v => uniforms.uBright.value = $('useBright').checked ? v : 0);
-bindRange('wave', v => uniforms.uWave.value = $('useWave').checked ? v : 0);
+bindRange('bright', v => uniforms.uBright.value = v);
+bindRange('wave', v => uniforms.uWave.value = v);
 bindRange('mouse', v => uniforms.uMouseForce.value = v);
-$('useBright').onchange = () => $('bright').dispatchEvent(new Event('input'));
-$('useWave').onchange = () => $('wave').dispatchEvent(new Event('input'));
 $('bg').oninput = e => scene.background.set(e.target.value);
 
 $('file').onchange = e => { const f = e.target.files[0]; if (f) loadImage(URL.createObjectURL(f)); };
@@ -321,7 +328,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = clock.getDelta();
   uniforms.uTime.value = clock.elapsedTime;
-  const target = $('useMouse').checked && hovering ? 1 : 0;
+  const target = hovering ? 1 : 0;
   uniforms.uMouseOn.value += (target - uniforms.uMouseOn.value) * 0.1;
   updateFly(dt);
   controls.update();
